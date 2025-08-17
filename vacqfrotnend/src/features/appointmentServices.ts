@@ -9,7 +9,7 @@ const getMyAppt = async(page: Number, limit: Number)=>{
                 Authorization: `Bearer ${localStorage.getItem('token')}`
             }
         })
-        return response.data?.data
+        return response.data
     }catch(err){
         console.error("Authorization getMyAppointment:");
         console.error(err);

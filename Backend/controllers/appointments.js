@@ -15,9 +15,29 @@ exports.getAppointments = async(req,res,next)=>{
             path:'hospital',//path: fields' name
             select:'name province tel'
         })
+        const page = parseInt(req.query.page, 10) || 1
+        const limit = parseInt(req.query.limit, 10) || 25
+        const startAt = (page-1)*limit
+        const endAt = page*limit
+        const total = await Appointment.countDocuments()
+        const pagination = {}
+        if (startAt > 0){
+            pagination.prev = {
+                page:page-1,
+                limit:limit
+            }
+        }
+        if (endAt < total){
+            pagination.next = {
+                page:page+1,
+                limit:limit
+            }
+        }
+        query = query.skip(startAt).limit(limit)
         const appt = await query
         res.status(200).json({
             success: true,
+            pagination,
             count: appt.length,
             data: appt
         })

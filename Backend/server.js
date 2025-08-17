@@ -20,6 +20,7 @@ dotenv.config({path: './config/config.env'})
 connectDB()
 
 const app = express()
+app.set('query parser', 'extended');
 const limiter = rateLimit({
     windowMs: 10*60*1000, // 10 min
     max: 1000000 // can send request not more than 100

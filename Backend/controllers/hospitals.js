@@ -4,14 +4,17 @@ const qs = require('qs');
 
 exports.getHospitals = async (req,res,next)=>{
     try{
-        const reqQuery = {...req.query}
+        let reqQuery = {...req.query}
         const removeFields = ['select', 'sort', 'page', 'limit']
         removeFields.forEach(object=> delete reqQuery[object])
-        let queryObj = qs.parse(reqQuery);
-        queryObj = JSON.parse(
-          JSON.stringify(queryObj).replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`)
-        );
-        hospitalsQuery = Hospital.find(queryObj).populate('appointments')
+        // let queryObj = qs.parse(reqQuery);
+        // queryObj = JSON.parse(
+        //   JSON.stringify(queryObj).replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`)
+        // );
+        reqQuery = JSON.parse(
+          JSON.stringify(reqQuery).replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`)
+        )
+        hospitalsQuery = Hospital.find(reqQuery).populate('appointments')
         if (req.query.select){
             const fields = req.query.select.split(',').join(' ')
             hospitalsQuery = hospitalsQuery.select(fields)

@@ -7,6 +7,8 @@ import type { Appointment } from "../models/model";
 
 function ViewAppt() {
   const [Page, setPage] = useState(1);
+  const [prevPage, setPrevPage] = useState(0)
+  const [nextPage, setNextPage] = useState(0)
   const [limit, setLimit] = useState(25);
   const location = useLocation();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -69,12 +71,23 @@ function ViewAppt() {
     }
   };
   const handleGetAppointment = async (page: Number, limit: Number) => {
-    const data = await appointmentServices.getMyAppt(page, limit);
+    const response = await appointmentServices.getMyAppt(page, limit);
+    const data = response.data
     const formatted = data.map((appt: any) => ({
       ...appt,
       apptDate: new Date(appt.apptDate),
       id: appt._id,
     }));
+    if (response.pagination?.prev){
+      setPrevPage(response.pagination?.prev.page)
+    }else{
+      setPrevPage(0)
+    }
+    if (response.pagination?.next){
+      setNextPage(response.pagination?.next.page)
+    }else{
+      setNextPage(0)
+    }
     setAppointments(formatted);
   };
   const handleOpenEditModal = (appt: Appointment) => {
@@ -155,22 +168,23 @@ function ViewAppt() {
           </table>
         </section>
         <section className="flex justify-center gap-5 sm:gap-10 lg:gap-20 mt-3 sm:mt-5 lg:mt-10">
-          {Page > 1 ? (
+          {prevPage !== 0  && 
             <button
               onClick={handlePrev}
               className=" border-2 rounded-sm border-gray-600 text-center p-2 text-base transition duration-200 ease-in-out hover:bg-gray-400"
             >
               Prev
             </button>
-          ) : (
-            <></>
-          )}
-          <button
-            onClick={handleNext}
-            className=" border-2 rounded-sm text-white bg-black text-center p-2 text-base transition duration-200 ease-in-out hover:bg-gray-600"
-          >
-            Next
-          </button>
+          }
+          {nextPage !== 0 && 
+              <button
+              onClick={handleNext}
+              className=" border-2 rounded-sm text-white bg-black text-center p-2 text-base transition duration-200 ease-in-out hover:bg-gray-600"
+            >
+              Next
+            </button>
+          }
+          
         </section>
         <button
           onClick={() => handleOpenAddModal()}
