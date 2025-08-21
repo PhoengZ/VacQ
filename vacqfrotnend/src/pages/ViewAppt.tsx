@@ -4,217 +4,189 @@ import { toast } from "react-toastify";
 import { useLocation } from "react-router-dom";
 import CreatingForm from "../components/CreatingForm";
 import type { Appointment } from "../models/model";
+import { FaPlus, FaPencilAlt, FaTrashAlt, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+
+// A new sub-component for when the user has no appointments
+function EmptyState({ onAddNew }: { onAddNew: () => void }) {
+    return (
+        <div className="text-center py-16 px-6 bg-white rounded-lg shadow-md">
+            <h3 className="text-xl font-semibold text-slate-700">No Appointments Found</h3>
+            <p className="text-slate-500 mt-2 mb-6">Get started by booking your first vaccination appointment.</p>
+            <button
+                onClick={onAddNew}
+                className="inline-flex items-center gap-2 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-blue-700 transition-colors duration-300"
+            >
+                <FaPlus />
+                Book New Appointment
+            </button>
+        </div>
+    );
+}
 
 function ViewAppt() {
-  const [Page, setPage] = useState(1);
-  const [prevPage, setPrevPage] = useState(0)
-  const [nextPage, setNextPage] = useState(0)
-  const [limit, setLimit] = useState(25);
-  const location = useLocation();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingAppointment, setEditingAppointment] =
-    useState<Appointment | null>(null);
-  useEffect(() => {
-    if (location.state?.openModal) {
-      setIsModalOpen(true);
-    }
-  }, [location.state]);
-  const [Appointments, setAppointments] = useState<Appointment[]>([]);
-  useEffect(() => {
-    const fetchData = async () => {
-      await handleGetAppointment(Page, limit);
+    const [page, setPage] = useState(1);
+    const [prevPage, setPrevPage] = useState(0);
+    const [nextPage, setNextPage] = useState(0);
+    const [limit] = useState(10);
+    const [isLoading, setIsLoading] = useState(true);
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+    const location = useLocation();
+
+    useEffect(() => {
+        if (location.state?.openModal) {
+            setIsModalOpen(true);
+        }
+    }, [location.state]);
+
+    useEffect(() => {
+        const handleGetAppointment = async (pageNum: number, limitNum: number) => {
+            setIsLoading(true);
+            try {
+                const response = await appointmentServices.getMyAppt(pageNum, limitNum);
+                const data = response.data;
+                const formatted = data.map((appt: any) => ({
+                    ...appt,
+                    apptDate: new Date(appt.apptDate),
+                    id: appt._id,
+                }));
+
+                setPrevPage(response.pagination?.prev?.page || 0);
+                setNextPage(response.pagination?.next?.page || 0);
+                setAppointments(formatted);
+            } catch (error) {
+                toast.error("Failed to fetch appointments.");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        handleGetAppointment(page, limit);
+    }, [page, limit]);
+
+
+    const handleAddAppointment = async (hid: string, payload: object) => {
+        try {
+            let response = await appointmentServices.addMyAppt(hid, payload);
+            response = { ...response, apptDate: new Date(response.apptDate), id: response._id };
+            setAppointments(prev => [...prev, response].sort((a, b) => b.apptDate.getTime() - a.apptDate.getTime()));
+            handleCloseModal();
+            toast.success("Appointment added successfully");
+        } catch (err: any) { toast.error(err.response?.data?.message); }
     };
-    fetchData();
-  }, [Page, limit]);
-  const handleAddAppointment = async (hid: string, payload: object) => {
-    try {
-      let response = await appointmentServices.addMyAppt(hid, payload);
-      response = {
-        ...response,
-        apptDate: new Date(response.apptDate),
-        id: response._id,
-      };
-      console.log(response);
-      setAppointments((prev) => [...prev, response]);
-      handleCloseModal();
-      toast.success("Successful adding appointment");
-    } catch (err: any) {
-      toast.error(err.response?.data?.message);
-    }
-  };
-  const handleEditAppointment = async (aid: string, payload: object) => {
-    try {
-      let response = await appointmentServices.editMyAppt(aid, payload);
-      console.log(response);
-      const updatedAppt = {
-        ...response,
-        apptDate: new Date(response.apptDate),
-        id: response._id,
-      };
-      let newAppointment = Appointments.filter((appt:any)=>appt.id != response._id)
-      newAppointment.push(updatedAppt)
-      setAppointments(newAppointment);
-      handleCloseModal();
-      toast.success("Successful editing appointment");
-    } catch (err: any) {
-      toast.error(err.response?.data?.message);
-    }
-  };
-  const handleDeleteAppointment = async (aid: string) => {
-    try {
-      const response = await appointmentServices.delMyAppt(aid);
-      toast.success("Successful delete appointment");
-      const filterAppointment = Appointments.filter((appt) => appt.id != aid);
-      setAppointments(filterAppointment);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message);
-    }
-  };
-  const handleGetAppointment = async (page: Number, limit: Number) => {
-    const response = await appointmentServices.getMyAppt(page, limit);
-    const data = response.data
-    const formatted = data.map((appt: any) => ({
-      ...appt,
-      apptDate: new Date(appt.apptDate),
-      id: appt._id,
-    }));
-    if (response.pagination?.prev){
-      setPrevPage(response.pagination?.prev.page)
-    }else{
-      setPrevPage(0)
-    }
-    if (response.pagination?.next){
-      setNextPage(response.pagination?.next.page)
-    }else{
-      setNextPage(0)
-    }
-    setAppointments(formatted);
-  };
-  const handleOpenEditModal = (appt: Appointment) => {
-    setEditingAppointment(appt);
-    setIsModalOpen(true);
-  };
+    const handleEditAppointment = async (aid: string, payload: object) => {
+        try {
+            let response = await appointmentServices.editMyAppt(aid, payload);
+            const updatedAppt = { ...response, apptDate: new Date(response.apptDate), id: response._id };
+            setAppointments(prev => prev.map(appt => appt.id === aid ? updatedAppt : appt));
+            handleCloseModal();
+            toast.success("Appointment updated successfully");
+        } catch (err: any) { toast.error(err.response?.data?.message); }
+    };
+    const handleDeleteAppointment = async (aid: string) => {
+        try {
+            await appointmentServices.delMyAppt(aid);
+            setAppointments(prev => prev.filter((appt) => appt.id !== aid));
+            toast.success("Appointment deleted successfully");
+        } catch (err: any) { toast.error(err.response?.data?.message); }
+    };
 
-  const handleOpenAddModal = () => {
-    setEditingAppointment(null);
-    setIsModalOpen(true);
-  };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setEditingAppointment(null);
-  };
-  const handleNext = () => {
-    setPage(Page + 1);
-  };
-  const handlePrev = () => {
-    setPage(Page - 1);
-  };
-  return (
-    <section className="relative min-h-screen">
-      <section>
-        <img
-          src="/ChulaEngineeringLogorevised.png"
-          alt="Logo"
-          className=" w-full h-full lg:w-6/12 lg:h-6/12 mx-auto my-auto"
-        />
-      </section>
-      <section className="w-full h-full relative p-2 sm:p-4 lg:p-8">
-        <section className=" flex flex-col justify-center items-center gap-4 sm:gap-8 lg:gap-16">
-          <h1 className=" text-xl sm:text-2xl lg:text-4xl font-bold text-center">
-            Vaccination appointments
-          </h1>
-          <p className="text-sm sm:text-xl lg:text-2xl font-light text-center text-gray-700">
-            Example of CRUD made with Node.js, Express, MongoDB, and HandleBars
-          </p>
-        </section>
-        <section className="mt-5 sm:mt-10 lg:mt-20 px-5 sm:px-10 lg:px-20">
-          <table className="w-full h-fit">
-            <thead className=" border-b-2 border-t-2 border-gray-400 py-10">
-              <tr>
-                <th className="py-2 font-bold text-center">appt Date</th>
-                <th className="py-2 font-bold text-center">User</th>
-                <th className="py-2 font-bold text-center">Hospital</th>
-                <th className="py-2 font-bold text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody className=" border-b-2 border-t-2 border-gray-200 py-10">
-              {Appointments.map((appt) => (
-                <tr key={appt.id}>
-                  <td className="py-2 font-bold text-center">
-                    {appt.apptDate.toLocaleDateString()}
-                  </td>
-                  <td className="py-2 font-bold text-center">{appt.user}</td>
-                  <td className="py-2 font-bold text-center">
-                    {appt.hospital.name}
-                  </td>
-                  <td className="py-2 font-bold text-center flex justify-center">
+    const handleOpenEditModal = (appt: Appointment) => {
+        setEditingAppointment(appt);
+        setIsModalOpen(true);
+    };
+
+    const handleOpenAddModal = () => {
+        setEditingAppointment(null);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setEditingAppointment(null);
+    };
+    
+    return (
+        <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
+            <div className="max-w-7xl mx-auto">
+                <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+                    <div>
+                        <h1 className="text-3xl font-bold text-slate-800">My Appointments</h1>
+                        <p className="mt-1 text-slate-500">View and manage your vaccination schedule.</p>
+                    </div>
                     <button
-                      onClick={() => handleOpenEditModal(appt)}
-                      className=" border-2 rounded-sm text-white bg-blue-600 text-center p-2 text-base transition duration-200 ease-in-out hover:bg-blue-400"
+                        onClick={handleOpenAddModal}
+                        className="mt-4 sm:mt-0 inline-flex items-center gap-2 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-blue-700 transition-colors duration-300"
                     >
-                      Edit
+                        <FaPlus />
+                        Book New Appointment
                     </button>
-                    <button
-                      onClick={() => handleDeleteAppointment(appt.id)}
-                      className=" border-2 rounded-sm text-white bg-red-600 text-center p-2 text-base transition duration-200 ease-in-out hover:bg-red-400"
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-        <section className="flex justify-center gap-5 sm:gap-10 lg:gap-20 mt-3 sm:mt-5 lg:mt-10">
-          {prevPage !== 0  && 
-            <button
-              onClick={handlePrev}
-              className=" border-2 rounded-sm border-gray-600 text-center p-2 text-base transition duration-200 ease-in-out hover:bg-gray-400"
-            >
-              Prev
-            </button>
-          }
-          {nextPage !== 0 && 
-              <button
-              onClick={handleNext}
-              className=" border-2 rounded-sm text-white bg-black text-center p-2 text-base transition duration-200 ease-in-out hover:bg-gray-600"
-            >
-              Next
-            </button>
-          }
-          
-        </section>
-        <button
-          onClick={() => handleOpenAddModal()}
-          className=" absolute bottom-[-50px] right-4 border-2 rounded-sm text-white bg-green-600 text-center p-2 text-base transition duration-200 ease-in-out hover:bg-green-400"
-        >
-          Add New
-        </button>
-        {isModalOpen && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 bg-[rgba(0,0,0,0.5)]">
-            <div className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full relative">
-              <button
-                className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-                onClick={handleCloseModal}
-              >
-                Close
-              </button>
-              <CreatingForm
-                isUpdate={!!editingAppointment}
-                oldDate={editingAppointment?.apptDate || new Date()}
-                hospital={editingAppointment?.hospital.name || ""}
-                onAdd={handleAddAppointment}
-                onEdit={handleEditAppointment}
-                appointmentId={editingAppointment?.id}
-              />
+                </header>
+
+                <main>
+                    { appointments.length > 0 ? (
+                        <div className="bg-white rounded-lg shadow-md overflow-x-auto">
+                            <table className="w-full text-sm text-left text-slate-500">
+                                <thead className="text-xs text-slate-700 uppercase bg-slate-50">
+                                    <tr>
+                                        <th scope="col" className="px-6 py-3">Appointment Date</th>
+                                        <th scope="col" className="px-6 py-3">User ID</th>
+                                        <th scope="col" className="px-6 py-3">Hospital</th>
+                                        <th scope="col" className="px-6 py-3 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {appointments.map((appt) => (
+                                        <tr key={appt.id} className="bg-white border-b hover:bg-slate-50">
+                                            <td className="px-6 py-4 font-medium text-slate-900">{appt.apptDate.toLocaleDateString('en-GB')}</td>
+                                            <td className="px-6 py-4 truncate max-w-xs">{appt.user}</td>
+                                            <td className="px-6 py-4">{appt.hospital.name}</td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex justify-end gap-4">
+                                                    <button onClick={() => handleOpenEditModal(appt)} className="text-slate-500 hover:text-blue-600 transition-colors"><FaPencilAlt /></button>
+                                                    <button onClick={() => handleDeleteAppointment(appt.id)} className="text-slate-500 hover:text-red-600 transition-colors"><FaTrashAlt /></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <EmptyState onAddNew={handleOpenAddModal} />
+                    )}
+                </main>
+                
+                {appointments.length > 0 && (
+                    <footer className="flex justify-between items-center mt-6">
+                        <button onClick={() => setPage(page - 1)} disabled={!prevPage} className="inline-flex items-center gap-2 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:text-slate-900 font-medium">
+                            <FaChevronLeft /> Previous
+                        </button>
+                        <span className="text-sm text-slate-500">Page {page}</span>
+                        <button onClick={() => setPage(page + 1)} disabled={!nextPage} className="inline-flex items-center gap-2 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:text-slate-900 font-medium">
+                            Next <FaChevronRight />
+                        </button>
+                    </footer>
+                )}
             </div>
-          </div>
-        )}
-      </section>
-    </section>
-  );
+
+            {isModalOpen && (
+                <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50">
+                    <CreatingForm
+                        isUpdate={!!editingAppointment}
+                        oldDate={editingAppointment?.apptDate || new Date()}
+                        hospital={editingAppointment?.hospital.name || ""}
+                        onAdd={handleAddAppointment}
+                        onEdit={handleEditAppointment}
+                        onClose={handleCloseModal}
+                        appointmentId={editingAppointment?.id}
+                    />
+                </div>
+            )}
+        </div>
+    );
 }
 
 export default ViewAppt;
