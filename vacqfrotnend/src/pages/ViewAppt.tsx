@@ -28,7 +28,6 @@ function ViewAppt() {
     const [prevPage, setPrevPage] = useState(0);
     const [nextPage, setNextPage] = useState(0);
     const [limit] = useState(10);
-    const [isLoading, setIsLoading] = useState(true);
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
@@ -42,7 +41,6 @@ function ViewAppt() {
 
     useEffect(() => {
         const handleGetAppointment = async (pageNum: number, limitNum: number) => {
-            setIsLoading(true);
             try {
                 const response = await appointmentServices.getMyAppt(pageNum, limitNum);
                 const data = response.data;
@@ -57,8 +55,6 @@ function ViewAppt() {
                 setAppointments(formatted);
             } catch (error) {
                 toast.error("Failed to fetch appointments.");
-            } finally {
-                setIsLoading(false);
             }
         };
 
