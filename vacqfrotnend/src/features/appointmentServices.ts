@@ -1,6 +1,6 @@
 import axios from "axios"
 
-const API_URL = 'http://localhost:5000/api/v1/'
+const API_URL = import.meta.env.VITE_BACKEND_URL
 
 const getMyAppt = async(page: Number, limit: Number)=>{
     try{
